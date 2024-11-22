@@ -52,7 +52,6 @@ int write_data(int shmid, char *data){
     shmp->complete = 0;
     memcpy(bufptr, data, strlen(data));
     shmp->cnt = strlen(data);
-    wait(NULL);
     shmp->complete = 1;
 
     // Detach SHM

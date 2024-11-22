@@ -13,7 +13,6 @@
 #include <fcntl.h>
 #include <string.h>
 
-// #include "parent.h"
 #include "shmutil.h"
 
 #define BUFFERSIZE 1024
@@ -27,42 +26,18 @@ void process1();
 void process2();
 int process3();
 
-
-double epoch_double(struct timespec *tv)
-{
-    clock_gettime(CLOCK_REALTIME, tv);
-    char time_str[32];
-
-    sprintf(time_str, "%ld.%.9ld", tv->tv_sec, tv->tv_nsec);
-
-    return atof(time_str);
-}
-
-long int epoch_millis()
-{
-    double epoch;
-    struct timespec tv;
-    epoch = epoch_double(&tv);
-    epoch = round(epoch*1e3);
-
-    return (long int) epoch;
-}
+double epoch_double(struct timespec *tv);
+long int epoch_millis();
 
 int main()
 {
     int parent = getpid();
     long int *arr;
-
     
-    static long int start[3];
     int key = ftok(".", 34);
-
     int times_shmid = shmget(key,sizeof(long int)*6,0666|IPC_CREAT);
 
-
-    struct timespec tv;
     fork();
-
     
     if (getpid() != parent){
         process1();
@@ -71,7 +46,6 @@ int main()
         arr[1] = epoch_millis();
         shmdt((void *) arr);
 
-        // printf("p2: %ld\n", start[0]);
         exit(0);
     }
     fork();
@@ -86,13 +60,12 @@ int main()
         exit(0);
     }
 
-    // Wait for two child processes to finish
     int status;
     arr = (long int *)shmat(times_shmid, NULL, 0);
 
     waitpid(arr[0], &status, 0);
 
-    printf("wait time for process 1: %dms\n", (epoch_millis() - arr[1]));
+    printf("wait time for process 1: %ldms\n", (epoch_millis() - arr[1]));
 
     shmid = create_shm();
     fork();
@@ -114,20 +87,16 @@ int main()
     }
     int donepid = wait(NULL);
     if (donepid == arr[2])
-        printf("wait time for process 2: %dms\n", (epoch_millis() - arr[3]));
+        printf("wait time for process 2: %ldms\n", (epoch_millis() - arr[3]));
     else 
-        printf("wait time for process 3: %dms\n", (epoch_millis() - arr[5]));
+        printf("wait time for process 3: %ldms\n", (epoch_millis() - arr[5]));
 
     donepid = wait(NULL);
     if (donepid == arr[2])
-        printf("wait time for process 2: %dms\n", (epoch_millis() - arr[3]));
+        printf("wait time for process 2: %ldms\n", (epoch_millis() - arr[3]));
     else
-        printf("wait time for process 3: %dms\n", (epoch_millis() - arr[5]));
+        printf("wait time for process 3: %ldms\n", (epoch_millis() - arr[5]));
 
-    // for (int i=0; i<6; i++) {
-    //     printf("data %d = %ld\n", i, arr[i]);
-    // 
-    // }
     shmdt((void *) arr);
     shmctl(times_shmid, IPC_RMID, NULL);
 
@@ -138,29 +107,22 @@ int main()
     remove_shm(shmid);
 }
 
-int active = 1;
 char data[BUF_SIZE];
 
-void handle_sigint(int sig){
-    printf("data to write: %s\n", data);
-    write_data(shmid, data);
-    active = 0;
-}
-
 int process3(){
-    signal(SIGINT, handle_sigint);
     int fd;
     fd = open(DEVICE, O_RDWR); 
 
     int success;
 
     int i = 0;
-    while(active){
+    while(1){
         success = read(fd, data+i, 1);
         if(success < 1)
             break;
         i++;
     }
+    data[i+1] = '\n';
 
     printf("read '%s' from queue\n", data);
 
@@ -224,7 +186,7 @@ void process1(){
     }
 
     address.sin_family = AF_INET;
-    address.sin_addr.s_addr = INADDR_ANY;
+    address.sin_addr.s_addr = INADDR_ANY; // 0.0.0.0
     address.sin_port = htons(54321);
 
     if (bind(server_fd, (struct sockaddr *)&address, sizeof(address)) < 0) {
@@ -246,7 +208,7 @@ void process1(){
 
 void writeToQueue(char *data){
     int fd;
-    fd = open(DEVICE, O_RDWR); 
+    fd = open(DEVICE, O_RDWR);
     int success;
     int count = strlen(data);
     for(int i=0; i<count; i++){
@@ -259,4 +221,24 @@ void writeToQueue(char *data){
         if(success != 0)
             data++;
     }
+}
+
+double epoch_double(struct timespec *tv)
+{
+    clock_gettime(CLOCK_REALTIME, tv);
+    char time_str[32];
+
+    sprintf(time_str, "%ld.%.9ld", tv->tv_sec, tv->tv_nsec);
+
+    return atof(time_str);
+}
+
+long int epoch_millis()
+{
+    double epoch;
+    struct timespec tv;
+    epoch = epoch_double(&tv);
+    epoch = round(epoch*1e3);
+
+    return (long int) epoch;
 }

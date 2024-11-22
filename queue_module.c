@@ -89,8 +89,6 @@ static int dev_release(struct inode* inodep, struct file* filep) {
 
 static ssize_t dev_read(struct file* filep, char* buffer, size_t len, loff_t* offset) {
     int error_count = 1;
-    char message[256] = {0};
-    int bytes_read = 0;
 
     if (queue_count == 0) {
         if (blocking) {
@@ -124,7 +122,6 @@ static ssize_t dev_read(struct file* filep, char* buffer, size_t len, loff_t* of
 
 static ssize_t dev_write(struct file* filep, const char* buffer, size_t len, loff_t* offset) {
     int error_count = 0;
-    char message[256] = {0};
 
     if (queue_count == QUEUE_SIZE) {
         if (blocking) {
